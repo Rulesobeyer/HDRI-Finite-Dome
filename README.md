@@ -19,3 +19,6 @@ Tested with Blender + Octane, but should work with any OSL-compatible renderer.
 
 Tested with Blender + Octane; should work with other OSL renderers.
 
+## License
+
+Licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt).
