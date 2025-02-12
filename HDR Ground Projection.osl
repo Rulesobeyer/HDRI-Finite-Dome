@@ -1,0 +1,81 @@
+shader HDRI_DomeProjection (
+    // Rotation of the environment in degrees.
+    float Rotation = 0.0
+      [[ string label = "Rotation (deg)", float min = -360.0, float max = 360.0 ]],
+    
+    // Height adjustment (affects the V coordinate).
+    float Height = 0.0
+      [[ string label = "Height", float min = -1.0, float max = 1.0 ]],
+    
+    // Optional tilt parameters (in degrees)
+    float TiltX = 0.0
+      [[ string label = "Tilt X (deg)", float min = -360.0, float max = 360.0 ]],
+    float TiltY = 0.0
+      [[ string label = "Tilt Y (deg)", float min = -360.0, float max = 360.0 ]],
+    
+    // Ground projection parameters
+    point GroundCenter = point(0.0, 0.0, 0.0)
+      [[ string label = "Ground Center" ]],
+    float GroundRadius = 1.5
+      [[ string label = "Ground Radius", float min = 0.0, float max = 50.0 ]],
+    
+    // Output: the UV coordinates as a color (R=U, G=V)
+    output color c = 0)
+{
+    //-------------------------------------------------------------------------
+    // Constants
+    float pi     = 4.0 * atan(1.0);
+    float two_pi = 2.0 * pi;
+    
+    // Get the camera (eye) position in world space.
+    point camPos = transform("camera", "world", point(0, 0, 0));
+    
+    // Use the incoming ray direction (normalized).
+    vector rayDir = normalize(I);
+    vector orgRay = rayDir; // store original ray direction
+    
+    //-------------------------------------------------------------------------
+    // Ground projection:
+    // If the ray is pointing downward (-Y), reproject it.
+
+    if (rayDir[1] < 0.0) {
+        // Compute intersection t with the virtual ground plane at Y = GroundCenter.y.
+        float t = (GroundCenter[1] - camPos[1]) / rayDir[1];
+        point GP = camPos + rayDir * t;
+        
+        // Define a virtual projection origin offset from the ground center.
+        point TP = GroundCenter + vector(0.0, GroundRadius, 0.0);
+        
+        // Recompute the ray direction from TP to the intersection point.
+        rayDir = normalize(vector(GP) - vector(TP));
+        
+        // Smooth the transition near the horizon.
+        if (rayDir[1] > -0.1) {
+            float fac = 1.0 - (-rayDir[1] * 10.0);
+            fac = fac * fac;
+            rayDir = mix(rayDir, orgRay, fac);
+        }
+    }
+    
+    //-------------------------------------------------------------------------
+    // Tilt adjustments.
+    if (TiltX != 0.0)
+        rayDir = rotate(rayDir, radians(TiltX), vector(0.0), vector(1,0,0));
+    if (TiltY != 0.0)
+        rayDir = rotate(rayDir, radians(TiltY), vector(0.0), vector(0,1,0));
+    
+    //-------------------------------------------------------------------------
+    // Compute spherical UV coordinates from the ray direction.
+    float u_coord = (Rotation / 360.0) + (atan2(rayDir[0], rayDir[2]) / two_pi);
+    float v_coord = 0.5 + (asin(rayDir[1]) / pi);
+    
+    // Adjust the V coordinate by the Height parameter.
+    v_coord -= Height * sqrt(1.0 - rayDir[1] * rayDir[1]);
+    
+    // Wrap U to the [0,1] range.
+    u_coord = mod(u_coord, 1.0);
+    
+    // Output the computed UV coordinates as a color:
+    //   red = U coordinate, green = V coordinate, blue is unused.
+    c = vector(u_coord, v_coord, 0);
+}
