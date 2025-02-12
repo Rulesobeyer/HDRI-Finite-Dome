@@ -1,3 +1,5 @@
+// This file is licensed under Apache 2.0 license
+
 shader HDRI_DomeProjection (
     // Rotation of the environment in degrees.
     float Rotation = 0.0
